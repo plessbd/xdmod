@@ -131,13 +131,19 @@ class JobTimeseriesAggregator extends Aggregator
         if(!static::$__initialized)
         {
             //check to see all resources with jobs have processor info
-            $resources_without_info_result = $modwdb->query("
-				select distinct(resource_id) as resource_id
-				from jobfact
-				where
-					start_time_ts between unix_timestamp('$start_date') and unix_timestamp('$end_date')
-				  and resource_id not in (select distinct(resource_id) from resourcespecs where processors is not null)
-			");
+            $resources_without_info_result = $modwdb->query("SELECT
+                    DISTINCT(resource_id) AS resource_id
+                FROM
+                    jobfact
+                WHERE
+                    start_time_ts BETWEEN UNIX_TIMESTAMP('$start_date') AND UNIX_TIMESTAMP('$end_date')
+                    AND resource_id NOT IN (
+                        SELECT
+                            DISTINCT(resource_id)
+                        FROM resourcespecs
+                        WHERE processors IS NOT null
+                    )
+            ");
 
             if (count($resources_without_info_result) > 0) {
                 $resources = array();
@@ -145,45 +151,57 @@ class JobTimeseriesAggregator extends Aggregator
                     $resources[] = $resource['resource_id'];
                 }
                 $howToUpdateResource =
-                    \xd_utilities\getConfiguration('features', 'xsede') == 'on'
-                    ? 'update the resource config files in "' . CONFIG_DIR . '/ingestors/TGcDB"'
-                    : 'update the resource definition file located at "' . CONFIG_DIR . '/resource_specs.json"'
+                \xd_utilities\getConfiguration('features', 'xsede') == 'on'
+                ? 'update the resource config files in "' . CONFIG_DIR . '/ingestors/TGcDB"'
+                : 'update the resource definition file located at "' . CONFIG_DIR . '/resource_specs.json"'
                 ;
                 throw new Exception('New Resource(s) in resourcespecs table does not have processor and node information. Enum of resource_id(s): ' . implode(',', $resources) .
-                                    "\n".
-                                    'To fix this problem, figure out values for processors, ppn and nodes count for each resource and ' . $howToUpdateResource . '.');
+                "\n".
+                'To fix this problem, figure out values for processors, ppn and nodes count for each resource and ' . $howToUpdateResource . '.');
             }
 
             static::$__initialized = true;
         }
     }
 
-    private function getDateIds($modwdb, $dest_schema, $start_date, $end_date)
+    private function getDateIds($modwdb, $dest_schema, $start_date, $end_date, $turbo)
     {
-        $query = "SELECT DISTINCT
-                      p.id,
-                      p.`year` as year_id,
-                      p.`{$this->_time_period}`,
-                      p.{$this->_time_period}_start,
-                      p.{$this->_time_period}_end,
-                      p.{$this->_time_period}_start_ts,
-                      p.{$this->_time_period}_end_ts,
-                      p.hours,
-                      p.seconds
-                  FROM {$this->_time_period}s p,
-                      (SELECT
-                          jf.submit_time_ts, jf.end_time_ts
-                      FROM
-                          modw.jobfactstatus js,
-                          modw.jobfact jf
-                      WHERE
-                          jf.job_id = js.job_id
-                          AND js.aggregated_{$this->_time_period} = 0) jf
-                  WHERE
-                      jf.end_time_ts between p.{$this->_time_period}_start_ts and p.{$this->_time_period}_end_ts or
-                      p.{$this->_time_period}_end_ts between jf.submit_time_ts and jf.end_time_ts
-                  ORDER BY 2 DESC, 3 DESC";
 
+        if(true === $turbo){
+            $jobFactSelect = "
+                    MIN(jf.submit_time_ts) AS submit_time_ts,
+                    MAX(jf.end_time_ts) AS end_time_ts";
+        }
+        else {
+            $jobFactSelect = "jf.submit_time_ts
+                jf.end_time_ts";
+        }
+        $query = "SELECT DISTINCT
+                p.id,
+                p.`year` as year_id,
+                p.`{$this->_time_period}`,
+                p.{$this->_time_period}_start,
+                p.{$this->_time_period}_end,
+                p.{$this->_time_period}_start_ts,
+                p.{$this->_time_period}_end_ts,
+                p.hours,
+                p.seconds
+            FROM
+                {$this->_time_period}s p,
+                (
+                    SELECT
+                        {$jobFactSelect}
+                    FROM
+                        modw.jobfactstatus js,
+                        modw.jobfact jf
+                    WHERE
+                        jf.job_id = js.job_id
+                        AND js.aggregated_{$this->_time_period} = 0
+                ) jf
+            WHERE
+                jf.end_time_ts between p.{$this->_time_period}_start_ts and p.{$this->_time_period}_end_ts or
+                p.{$this->_time_period}_end_ts between jf.submit_time_ts and jf.end_time_ts
+            ORDER BY 2 DESC, 3 DESC";
         return $modwdb->query($query );
     }
 
