@@ -15,7 +15,7 @@ class JobTimeseriesAggregator extends Aggregator
 
     private $_time_period;
 
-    function __construct($time_period)
+    public function __construct($time_period)
     {
         $this->_time_period = $time_period;
 
@@ -25,10 +25,10 @@ class JobTimeseriesAggregator extends Aggregator
 
         $this->_tablename = "jobfact_by_{$this->_time_period}";
 
-		$wallduration_case_statement =  $this->getDistributionSQLCaseStatement('wallduration', ':seconds', 'start_time_ts', 'end_time_ts', ":{$this->_time_period}_start_ts",":{$this->_time_period}_end_ts");
-		
-		$local_charge_case_statement =  $this->getDistributionSQLCaseStatementWithDtype('local_charge', 'DECIMAL(18,3)', ':seconds', 'start_time_ts', 'end_time_ts', ":{$this->_time_period}_start_ts",":{$this->_time_period}_end_ts");
-		
+        $wallduration_case_statement =  $this->getDistributionSQLCaseStatement('wallduration', ':seconds', 'start_time_ts', 'end_time_ts', ":{$this->_time_period}_start_ts", ":{$this->_time_period}_end_ts");
+
+        $local_charge_case_statement =  $this->getDistributionSQLCaseStatementWithDtype('local_charge', 'DECIMAL(18,3)', ':seconds', 'start_time_ts', 'end_time_ts', ":{$this->_time_period}_start_ts", ":{$this->_time_period}_end_ts");
+
 
         $this->_fields = array(
             new TableColumn("{$this->_time_period}_id", 'int(11)', ":{$this->_time_period}_id", true, false, "The id related to modw.{$this->_time_period}s."),
@@ -54,7 +54,7 @@ class JobTimeseriesAggregator extends Aggregator
             new TableColumn('piperson_organization_id', 'int(7)', 'coalesce(piperson_organization_id, 0)', true, false, "The organization of the PI that owns the project that funds these jobs", true),
             new TableColumn('jobtime_id', 'int(3)', '(select id from job_times jt where wallduration >= jt.min_duration and wallduration <= jt.max_duration)', true, false, "Job time is bucketing of wall time based on prechosen intervals in the modw.job_times table.", true),
             new TableColumn('nodecount_id', 'int(8)', 'nodecount', true, false, "Number of nodes each of the jobs used."),
-		    new TableColumn('processors', 'int(8)', '(case when resource_id = 2020 then 1 else processors end)', true, false, "Number of processors each of the jobs used.", true),
+            new TableColumn('processors', 'int(8)', '(case when resource_id = 2020 then 1 else processors end)', true, false, "Number of processors each of the jobs used.", true),
             new TableColumn('processorbucket_id', 'int(3)', '(select id from processor_buckets pb where case when resource_id = 2020 then 1 else processors end between pb.min_processors and pb.max_processors)', false, true, "Processor bucket or job size buckets are prechosen in the modw.processor_buckets table.", true),
             new TableColumn('submitted_job_count', 'int(11)', "sum(case when submit_time_ts
                                                                         between :{$this->_time_period}_start_ts
@@ -93,57 +93,69 @@ class JobTimeseriesAggregator extends Aggregator
             new TableColumn('local_charge', 'decimal(18,0)', "sum( $local_charge_case_statement)", false, true, "The amount of the local_charge charged to jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its local_charge is distributed linearly across the {$this->_time_period}s it used."),
 
             new TableColumn('sum_local_charge_squared', 'double', "sum( pow( $local_charge_case_statement, 2) )", false, true, "The sum of the square of local_charge of jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its local_charge is distributed linearly across the {$this->_time_period}s it used."),
- 
+
             new TableColumn('cpu_time', 'decimal(18,0)', "coalesce(sum( processors*$wallduration_case_statement),0)", false, true, "(seconds) The amount of the cpu_time of the jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its cpu_time is distributed linearly across the {$this->_time_period}s it used."),
             new TableColumn('sum_cpu_time_squared', 'double', "coalesce(sum( pow(processors*$wallduration_case_statement,2)),0)", false, true, "(seconds) The sum of the square of the amount of the cpu_time of the jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its cpu_time is distributed linearly across the {$this->_time_period}s it used."),
-			
-			new TableColumn('node_time', 'decimal(18,0)', "coalesce(sum( nodecount*$wallduration_case_statement),0)", false, true, "(seconds) The amount of the node_time of the jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its node_time is distributed linearly across the {$this->_time_period}s it used."),
+
+            new TableColumn('node_time', 'decimal(18,0)', "coalesce(sum( nodecount*$wallduration_case_statement),0)", false, true, "(seconds) The amount of the node_time of the jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its node_time is distributed linearly across the {$this->_time_period}s it used."),
             new TableColumn('sum_node_time_squared', 'double', "coalesce(sum( pow(nodecount*$wallduration_case_statement,2)),0)", false, true, "(seconds) The sum of the square of the amount of the node_time of the jobs pertaining to this {$this->_time_period}. If a job took more than one {$this->_time_period}, its node_time is distributed linearly across the {$this->_time_period}s it used."),
-			
-            new TableColumn('sum_weighted_expansion_factor', 'decimal(18,0)',
-                  "sum( ((wallduration + waitduration) / wallduration) * nodecount * coalesce($wallduration_case_statement,0))", false, true, " this is the sum of expansion factor per job multiplied by nodecount and the [adjusted] duration of jobs that ran in this {$this->_time_period}s. "),
-            new TableColumn('sum_job_weights', 'decimal(18,0)',
-                  "sum( nodecount * coalesce($wallduration_case_statement,0))", false, true, " this is the sum of (nodecount multipled by the [adjusted] duration) for jobs that ran in this {$this->_time_period}s. ")
+
+            new TableColumn(
+                'sum_weighted_expansion_factor',
+                'decimal(18,0)',
+                "sum( ((wallduration + waitduration) / wallduration) * nodecount * coalesce($wallduration_case_statement,0))",
+                false,
+                true,
+                " this is the sum of expansion factor per job multiplied by nodecount and the [adjusted] duration of jobs that ran in this {$this->_time_period}s. "
+            ),
+            new TableColumn(
+                'sum_job_weights',
+                'decimal(18,0)',
+                "sum( nodecount * coalesce($wallduration_case_statement,0))",
+                false,
+                true,
+                " this is the sum of (nodecount multipled by the [adjusted] duration) for jobs that ran in this {$this->_time_period}s. "
+            )
 
         );
 
         if ($time_period == 'year') {
             unset($this->_fields[2]);
         }
-		
-		
+
+
     }
 
     private function checkResourceSpecs($modwdb, $start_date, $end_date)
     {
-		if(!static::$__initialized) 
-		{
-			//check to see all resources with jobs have processor info
-			$resources_without_info_result = $modwdb->query("
+        if(!static::$__initialized)
+        {
+            //check to see all resources with jobs have processor info
+            $resources_without_info_result = $modwdb->query("
 				select distinct(resource_id) as resource_id
 				from jobfact
 				where
-					start_time_ts between unix_timestamp('$start_date') and unix_timestamp('$end_date') 
+					start_time_ts between unix_timestamp('$start_date') and unix_timestamp('$end_date')
 				  and resource_id not in (select distinct(resource_id) from resourcespecs where processors is not null)
 			");
-	
-			if (count($resources_without_info_result) > 0) {
-				$resources = array();
-				foreach ($resources_without_info_result as $resource) {
-					$resources[] = $resource['resource_id'];
-				}
+
+            if (count($resources_without_info_result) > 0) {
+                $resources = array();
+                foreach ($resources_without_info_result as $resource) {
+                    $resources[] = $resource['resource_id'];
+                }
                 $howToUpdateResource =
                     \xd_utilities\getConfiguration('features', 'xsede') == 'on'
                     ? 'update the resource config files in "' . CONFIG_DIR . '/ingestors/TGcDB"'
                     : 'update the resource definition file located at "' . CONFIG_DIR . '/resource_specs.json"'
                 ;
-				throw new Exception('New Resource(s) in resourcespecs table does not have processor and node information. Enum of resource_id(s): ' . implode(',', $resources) . 
-									"\n". 
-									'To fix this problem, figure out values for processors, ppn and nodes count for each resource and ' . $howToUpdateResource . '.');
-			}
-			
-			static::$__initialized = true;
-		}
+                throw new Exception('New Resource(s) in resourcespecs table does not have processor and node information. Enum of resource_id(s): ' . implode(',', $resources) .
+                                    "\n".
+                                    'To fix this problem, figure out values for processors, ppn and nodes count for each resource and ' . $howToUpdateResource . '.');
+            }
+
+            static::$__initialized = true;
+        }
     }
 
     private function getDateIds($modwdb, $dest_schema, $start_date, $end_date)
@@ -159,8 +171,8 @@ class JobTimeseriesAggregator extends Aggregator
                       p.hours,
                       p.seconds
                   FROM {$this->_time_period}s p,
-                      (SELECT  
-                          jf.submit_time_ts, jf.end_time_ts 
+                      (SELECT
+                          jf.submit_time_ts, jf.end_time_ts
                       FROM
                           modw.jobfactstatus js,
                           modw.jobfact jf
@@ -172,7 +184,7 @@ class JobTimeseriesAggregator extends Aggregator
                       p.{$this->_time_period}_end_ts between jf.submit_time_ts and jf.end_time_ts
                   ORDER BY 2 DESC, 3 DESC";
 
-        return $modwdb->query( $query );
+        return $modwdb->query($query );
     }
 
 
@@ -229,7 +241,7 @@ class JobTimeseriesAggregator extends Aggregator
         foreach ($this->_fields as $field) {
             if (!$field->isInCube()) {
                 $noncube_fields[] = $field;
-            } else if ($field->isInGroupBy()) {
+            } elseif ($field->isInGroupBy()) {
                 $groupby_fields[] = $field;
             } else {
                 $formula_fields[] = $field;
@@ -296,11 +308,11 @@ class JobTimeseriesAggregator extends Aggregator
         return array($insert_statement, $select_statement);
     }
 
-    function execute($modwdb, $dest_schema, $start_date, $end_date, $append = true, $infinidb = false)
+    public function execute($modwdb, $dest_schema, $start_date, $end_date, $append = true, $infinidb = false)
     {
-        $this->checkResourceSpecs($modwdb , $start_date, $end_date);
+        $this->checkResourceSpecs($modwdb, $start_date, $end_date);
 
-        $this->_logger->info(  get_class($this) . ".execute(start_date: $start_date, end_date: $end_date, append: ". var_export($append, true) . ")" );
+        $this->_logger->info(get_class($this) . ".execute(start_date: $start_date, end_date: $end_date, append: ". var_export($append, true) . ")" );
 
         $this->createTables($modwdb, $dest_schema, $append, $infinidb);
 
@@ -341,20 +353,22 @@ class JobTimeseriesAggregator extends Aggregator
                   // other ETL processes. Be sure not to delete them from the aggregates table or
                   // that may undo what those processes put in.
 
-                  $skipHiddenResources = false;
-                  $hiddenResourcesClause = "";
-                  $deleteSql = "DELETE FROM {$dest_schema}.{$this->_tablename} WHERE {$this->_time_period}_id = $period_id";
+                    $skipHiddenResources = false;
+                    $hiddenResourcesClause = "";
+                    $deleteSql = "DELETE FROM {$dest_schema}.{$this->_tablename} WHERE {$this->_time_period}_id = $period_id";
 
-                  try {
-                    $skipHiddenResources = filter_var(\xd_utilities\getConfiguration('xsede_hidden_resources', 'skip_job_ingestion'), FILTER_VALIDATE_BOOLEAN);
-                    $hiddenResourcesCsv = trim(\xd_utilities\getConfiguration('xsede_hidden_resources', 'resource_ids'));
-                  } catch (\Exception $e) {}
-                  
-                  if ( $skipHiddenResources && "" != $hiddenResourcesCsv ) {
-                    $deleteSql .= " AND resource_id NOT IN ($hiddenResourcesCsv)";
-                  }
-                  
-                  $modwdb->handle()->prepare($deleteSql)->execute();
+                    try {
+                        $skipHiddenResources = filter_var(\xd_utilities\getConfiguration('xsede_hidden_resources', 'skip_job_ingestion'), FILTER_VALIDATE_BOOLEAN);
+                        $hiddenResourcesCsv = trim(\xd_utilities\getConfiguration('xsede_hidden_resources', 'resource_ids'));
+                    } catch (\Exception $e) {
+
+                    }
+
+                    if ( $skipHiddenResources && "" != $hiddenResourcesCsv ) {
+                        $deleteSql .= " AND resource_id NOT IN ($hiddenResourcesCsv)";
+                    }
+
+                    $modwdb->handle()->prepare($deleteSql)->execute();
 
                 }
                 while ($row = $statement->fetch(PDO::FETCH_ASSOC, PDO::FETCH_ORI_NEXT)) {
@@ -370,9 +384,8 @@ class JobTimeseriesAggregator extends Aggregator
 
         if( $this->_time_period == "year" ) {
             // Clean up entries that have been aggregated in all time periods
-            // Only bother to do this for year aggregation because 
+            // Only bother to do this for year aggregation because
             $modwdb->handle()->prepare("DELETE FROM modw.jobfactstatus WHERE aggregated_day = 1 AND aggregated_month = 1 AND aggregated_quarter = 1 AND aggregated_year = 1")->execute();
         }
     }
 }
-
