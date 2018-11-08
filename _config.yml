@@ -39,7 +39,8 @@ defaults:
         values:
             layout: "page"
             version: "8.0"
-            menu_markdown: "8.0/menu.md"
+            style: "effervescence"
+            tocversion: "v8_0toc"
     -
         scope:
             path: "7.5"
