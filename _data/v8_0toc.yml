@@ -1,23 +1,96 @@
-toc:
-  - title: About
-    subfolderitems:
-      - page: Overview
-        url: /8.0/index.html
-      - page: License Notices
-        url: /8.0/notices.html
-      - page: Architecture
-        url: /8.0/architecture.html
-      - page: Documentation Conventions
-        url: /8.0/docs-conventions.html
-
-  - title: Support
-    subfolderitems:
-      - page: Support
-        url: /8.0/support.html
-
-  - title: Download
-    subfolderitems:
-      - page: Latest Release
-        url: https://github.com/ubccr/xdmod/releases/latest
-      - page: GitHub Project Page
-        url: https://github.com/ubccr/xdmod
+{
+        "toc": [
+                {
+                        "title": "About",
+                        "subfolderitems": [
+                                {
+                                        "page": "Overview",
+                                        "url": "/8.0/index.html"
+                                },
+                                {
+                                        "page": "License Notices",
+                                        "url": "/8.0/notices.html"
+                                },
+                                {
+                                        "page": "Architecture",
+                                        "url": "/8.0/architecture.html"
+                                },
+                                {
+                                        "page": "Documentation Conventions",
+                                        "url": "/8.0/docs-conventions.html"
+                                }
+                        ]
+                },
+                {
+                        "title": "Support",
+                        "subfolderitems": [
+                                {
+                                        "page": "Support",
+                                        "url": "/8.0/support.html"
+                                }
+                        ]
+                },
+                {
+                        "title": "Download",
+                        "subfolderitems": [
+                                {
+                                        "page": "Latest Release",
+                                        "url": "https://github.com/ubccr/xdmod/releases/latest"
+                                },
+                                {
+                                        "page": "GitHub Project Page",
+                                        "url": "https://github.com/ubccr/xdmod"
+                                }
+                        ]
+                },
+                {
+                        "title": "Installing",
+                        "subfolderitems": [
+                                {
+                                        "page": "Software Requirements",
+                                        "url": "/8.0/software-requirements.html"
+                                },
+                                {
+                                        "page": "Installation Guides",
+                                        "url": "/8.0/install.html",
+                                        "subsubfolderitems": [
+                                                {
+                                                        "page": "RPM Installation Guide",
+                                                        "url": "/8.0/install-rpm.html"
+                                                },
+                                                {
+                                                        "page": "Source Installation Guide",
+                                                        "url": "/8.0/install-source.html)"
+                                                }
+                                        ]
+                                },
+                                {
+                                        "page": "Configuration Guide",
+                                        "url": "/8.0/configuration.html)",
+                                        "subsubfolderitems": [
+                                                {
+                                                        "page": "Single Sign On Authentication",
+                                                        "url": "/8.0/simpleSAMLphp.html)"
+                                                },
+                                                {
+                                                        "page": "LDAP Authentication",
+                                                        "url": "/8.0/simpleSAMLphp-ldap.html)"
+                                                },
+                                                {
+                                                        "page": "Storage (Beta) Guide",
+                                                        "url": "/8.0/storage.html)"
+                                                }
+                                        ]
+                                },
+                                {
+                                        "page": "Database Guide",
+                                        "url": "/8.0/databases.html)"
+                                },
+                                {
+                                        "page": "Upgrade Guide",
+                                        "url": "/8.0/upgrade.html)"
+                                }
+                        ]
+                }
+        ]
+}
