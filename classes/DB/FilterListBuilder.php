@@ -43,16 +43,6 @@ class FilterListBuilder extends Loggable
     private $currentRealm = null;
 
     /**
-     * Construct filter list builder.
-     *
-     * @param Log|null $logger A Log instance that will be utilized during processing.
-     */
-    public function __construct(Logger $logger = null)
-    {
-        parent::__construct($logger);
-    }
-
-    /**
      * Build filter lists for all realms' dimensions.
      */
     public function buildAllLists()
@@ -86,7 +76,7 @@ class FilterListBuilder extends Loggable
         $this->currentRealm = \Realm\Realm::factory($realmName);
 
         // Generate the lists for each dimension and each pairing of dimensions.
-        foreach ($this->currentRealm->getGroupByObjects() as $groupById => $groupByObj) {
+        foreach ($this->currentRealm->getGroupByObjects() as $groupByObj) {
             $this->buildDimensionLists($realmQuery, $groupByObj);
         }
     }
