@@ -448,11 +448,12 @@ var xdmodIntegrator = function(realmName, realmConfigRoot) {
     };
 
     this.addGroupBy = function(name, className, classSrc, roleAccessConfig) {
+        /*
         if( ! classSrc ) {
             var sourceFile = realmConfigRoot + '/output_db/Query/' + realmName + '/GroupBys/' + className + '.php';
             classSrc = fs.readFileSync(sourceFile, 'utf-8');
         }
-
+        */
         realmConfig.group_bys.push({
             name: name,
             class: className
@@ -529,7 +530,7 @@ var xdmodIntegrator = function(realmName, realmConfigRoot) {
         realmConfig.statistics.sort(self.namecomparison("name"));
         realmConfig.statistics = arrayUnique(realmConfig.statistics, self.namecomparison("name"));
 
-        self.mkdirandwrite(config.xdmodBuildConfigDir + '/datawarehouse.d', realmName.toLowerCase(), realms);
+        //self.mkdirandwrite(config.xdmodBuildConfigDir + '/datawarehouse.d', realmName.toLowerCase(), realms);
 
         // Sort role configuration data and output
 
@@ -569,6 +570,53 @@ var extractandsubst = function(column, item) {
 
 var generateGroupBy = function(aggTemplate, itemAlias, className, column)
 {
+    var label = column.label;
+    var description = column.comments;
+    for( var tagidx in column.dynamictags ) {
+        label = label.replace( ":label_" + tagidx, column.dynamictags[tagidx] );
+        label = label.replace(":Label_" + tagidx, wordToUpper(column.dynamictags[tagidx]));
+        description = description.replace( ":label_" + tagidx, column.dynamictags[tagidx] );
+        description = description.replace(":Label_" + tagidx, wordToUpper(column.dynamictags[tagidx]));
+    }
+    var groupByObj = {};
+    return {
+        "attribute_table": column.dimension_table,
+        "attribute_table_schema": "modw_supremm",
+        "attribute_to_aggregate_table_key_map": [
+            {
+                "id": column.name
+            }
+        ],
+        "attribute_values_query": {
+            "joins": [
+                {
+                    "name": column.name
+                }
+            ],
+            "orderby": [
+                "id"
+            ],
+            "records": {
+                "id": "id",
+                "name": "description",
+                "order_id": "id",
+                "short_name": "description"
+            }
+        },
+        "category": column.category || 'unknown',
+        "chart_options": {
+            "combine_method": "stack",
+            "dataset_display_type": {
+                "aggregate": "bar"
+            },
+            "dataset_type": "aggregate"
+        },
+        "data_sort_order": null,
+        "description_html": description,
+        "name": label || itemAlias
+    };
+
+/*
     var aggCode = aggTemplate.replace(/_NAME_/g , itemAlias);
     aggCode = aggCode.replace(/_AGGREGATE_COLUMN_/g , column.name);
     aggCode = aggCode.replace(/_GROUPBY_CLASS_/g, className);
@@ -582,6 +630,7 @@ var generateGroupBy = function(aggTemplate, itemAlias, className, column)
         aggCode = aggCode.replace(new RegExp(":Label_" + tagidx, "g"), wordToUpper(column.dynamictags[tagidx]));
     }
     return aggCode;
+*/
 }
 
 var writeRealmMetadata = function (realm, profileVersion) {
@@ -608,8 +657,8 @@ ETLProfile.prototype.integrateWithXDMoD = function () {
 
     writeRealmMetadata(realmName, this.version);
 
-			var statTemplate = fs.readFileSync(this.root + '/output_db/Query/' + realmName + '/Statistics/template.stat.php', 'utf8');
-			var aggTemplate = fs.readFileSync(this.root + '/output_db/Query/' + realmName + '/GroupBys/template.groupby.php', 'utf8');
+			var statTemplate = ""; //fs.readFileSync(this.root + '/output_db/Query/' + realmName + '/Statistics/template.stat.php', 'utf8');
+			var aggTemplate = ""; //fs.readFileSync(this.root + '/output_db/Query/' + realmName + '/GroupBys/template.groupby.php', 'utf8');
 
             var xdmodInteg = new xdmodIntegrator(realmName, this.root);
 
@@ -621,6 +670,381 @@ ETLProfile.prototype.integrateWithXDMoD = function () {
             
 			self.emit('message', 'Processing table: ' + table.schema + '.' + table.name);
 
+			var groupBys = {
+                "application":{
+                    "attribute_table": "application",
+                    "attribute_table_schema": "modw_supremm",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "application_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "application"
+                            }
+                        ],
+                        "orderby": [
+                            "name"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "name",
+                            "order_id": "id",
+                            "short_name": "name"
+                        },
+                        "where": [
+                            "license_type = 'permissive'"
+                        ]
+                    },
+                    "category": "Executable",
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "h_bar"
+                        },
+                    },
+                    "description_html": "The classication of the job as common scientific application.",
+                    "name": "Application"
+                },
+                "exit_status":{
+                    "attribute_table": "exit_status",
+                    "attribute_table_schema": "modw_supremm",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "exit_status_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "exit_status"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "name",
+                            "order_id": "id",
+                            "short_name": "name"
+                        }
+                    },
+                    "category": "Executable",
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "bar"
+                        },
+                    },
+                    "data_sort_order": null,
+                    "description_html": "A categorization of jobs into discrete groups based on the exit status of each job reported by the resource manager.",
+                    "name": "Exit Status"
+                },
+                "granted_pe":{
+                    "attribute_table": "granted_pe",
+                    "attribute_table_schema": "modw_supremm",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "granted_pe"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "granted_pe"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "name",
+                            "order_id": "id",
+                            "short_name": "name"
+                        }
+                    },
+                    "category": "Usage",
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "h_bar"
+                        },
+                    },
+                    "description_html": "How many cores within one node.",
+                    "name": "Granted Processing Element"
+                },
+                "jobsize":{
+                    "$ref": "datawarehouse.d/ref/group-by-common.json#/jobsize"
+                },
+                "jobwalltime":{
+                    "$ref-with-overwrite": "datawarehouse.d/ref/group-by-common.json#/jobwalltime",
+                    "$overwrite": {
+                        "attribute_to_aggregate_table_key_map": [
+                            {
+                                "id": "jobtime_id"
+                            }
+                        ]
+                    }
+                },
+                "pi":{
+                    "$ref": "datawarehouse.d/ref/group-by-common.json#/pi"
+                },
+                "pi_institution":{
+                    "attribute_table": "organization",
+                    "attribute_table_schema": "modw",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "piperson_organization_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "organization"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "long_name",
+                            "order_id": "id",
+                            "short_name": "short_name"
+                        }
+                    },
+                    "category": "Administrative",
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "datasheet"
+                        },
+                        "dataset_type": "aggregate"
+                    },
+                    "description_html": "Organizations that have PIs with allocations.",
+                    "name": "PI Institution"
+                },
+                "shared":{
+                    "attribute_table": "shared",
+                    "attribute_table_schema": "modw_supremm",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "shared"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "shared"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "name",
+                            "order_id": "id",
+                            "short_name": "name"
+                        }
+                    },
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "bar"
+                        },
+                    },
+                    "data_sort_order": null,
+                    "description_html": "A categorization of jobs into discrete groups based on whether the job shared nodes.",
+                    "name": "Share Mode"
+                },
+                "institution":{
+                    "attribute_table": "organization",
+                    "attribute_table_schema": "modw",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "person_organization_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "organization"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "long_name",
+                            "order_id": "id",
+                            "short_name": "short_name"
+                        }
+                    },
+                    "category": "Administrative",
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "datasheet"
+                        },
+                        "dataset_type": "aggregate"
+                    },
+                    "description_html": "Organizations that have users with allocations.",
+                    "name": "User Institution"
+
+                },
+                "nodecount":{
+                    "$ref-with-overwrite": "datawarehouse.d/ref/group-by-common.json#/nodecount",
+                    "$overwrite": {
+                        "attribute_to_aggregate_table_key_map": [
+                            {
+                                "id": "nodecount_id"
+                            }
+                        ]
+                    }
+                },
+			    "none": {
+                    "$ref-with-overwrite": "datawarehouse.d/ref/group-by-none.json",
+                    "$overwrite": {
+                        "name": "${REALM_NAME}",
+                        "description_html": "Summarizes job performance data obtained via the SUPReMM project. These data are obtained from performance monitoring software running on each HPC resource. For most resources this data is generated for both XSEDE and non-XSEDE jobs. Non-XSEDE jobs can be filtered using a filter on the \"Grant Type\".",
+                        "attribute_values_query": {
+                            "records": {
+                                "id": "-9999",
+                                "short_name": "'${REALM_NAME}'",
+                                "name": "'${REALM_NAME}'",
+                                "order_id": "'${REALM_NAME}'"
+                            },
+                            "joins": [
+                                {
+                                    "name": "dual"
+                                }
+                            ]
+                        }
+                    }
+				},
+			    "day": {
+					"$ref": "datawarehouse.d/ref/group-by-time-period.json#/day"
+				},
+				"fieldofscience": {
+					"$ref": "datawarehouse.d/ref/group-by-hierarchy.json#/fieldofscience"
+				},
+				"month": {
+					"$ref": "datawarehouse.d/ref/group-by-time-period.json#/month"
+				},
+                "nsfdirectorate": {
+                    "$ref": "datawarehouse.d/ref/group-by-hierarchy.json#/nsfdirectorate"
+                },
+                "parentscience": {
+                    "$ref": "datawarehouse.d/ref/group-by-hierarchy.json#/parentscience"
+                },
+                "person": {
+                    "$ref": "datawarehouse.d/ref/group-by-common.json#/person"
+                },
+                "provider": {
+                    "$ref-with-overwrite": "datawarehouse.d/ref/group-by-common.json#/provider",
+                    "$overwrite": {
+                        "attribute_to_aggregate_table_key_map": [
+                          {
+                              "organization_id": "organization_id"
+                          }
+                      ],
+                    }
+                },
+				"quarter": {
+					"$ref": "datawarehouse.d/ref/group-by-time-period.json#/quarter"
+				},
+                "queue": {
+                    "additional_join_constraints": [
+                        {
+                            "attribute_expr": "resource_id",
+                            "operation": "=",
+                            "aggregate_expr": "resource_id"
+                        }
+                    ],
+                    "attribute_table": "queue",
+                    "attribute_table_schema": "modw",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "queue_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "name": "queue"
+                            }
+                        ],
+                        "orderby": [
+                            "id"
+                        ],
+                        "records": {
+                            "id": "id",
+                            "name": "id",
+                            "order_id": "id",
+                            "short_name": "id"
+                        }
+                    },
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "h_bar"
+                        },
+                        "dataset_type": "aggregate"
+                    },
+                    "description_html": "Queue pertains to the low level job queues on each resource.",
+                    "name": "Queue"
+                },
+                "resource": {
+                    "attribute_table": "resourcefact",
+                    "attribute_table_schema": "modw",
+                    "attribute_to_aggregate_table_key_map": [
+                        {
+                            "id": "resource_id"
+                        }
+                    ],
+                    "attribute_values_query": {
+                        "joins": [
+                            {
+                                "alias": "rf",
+                                "name": "resourcefact"
+                            },
+                            {
+                                "alias": "rs",
+                                "name": "resourcespecs",
+                                "on": "rf.id = rs.resource_id"
+                            }
+                        ],
+                        "orderby": [
+                            "rf.code",
+                            "rf.name"
+                        ],
+                        "records": {
+                            "id": "rf.id",
+                            "name": "REPLACE(rf.code, '-', ' ')",
+                            "order_id": "id",
+                            "short_name": "REPLACE(rf.code, '-', ' ')"
+                        },
+                        "where": [
+                            "rs.processors IS NOT NULL"
+                        ]
+                    },
+                    "chart_options": {
+                        "dataset_display_type": {
+                            "aggregate": "h_bar"
+                        },
+                        "dataset_type": "aggregate"
+                    },
+                    "description_html": "A resource is a remote computer that can run jobs.",
+                    "name": "Resource"
+                },
+                "username":{
+                    "$ref": "datawarehouse.d/ref/group-by-common.json#/username"
+                },
+				"year": {
+					"$ref": "datawarehouse.d/ref/group-by-time-period.json#/year"
+				}
+			};
+			var statistics = {};
+
 			var tableColumns = table.getAggregationTableFields();
 
 			for(var tc in tableColumns) {
@@ -629,10 +1053,11 @@ ETLProfile.prototype.integrateWithXDMoD = function () {
 
                     var itemAlias = tableColumns[tc].alias || tableColumns[tc].name;
                     var className = camelCase("GroupBy_" + tableColumns[tc].name);
-
-                    var aggCode = generateGroupBy(aggTemplate, itemAlias, className, tableColumns[tc]);
-
+                    //var aggCode = generateGroupBy(aggTemplate, itemAlias, className, tableColumns[tc]);
+                    var aggCode = null;
                     xdmodInteg.addGroupBy(itemAlias, className, aggCode, tableColumns[tc].roles);
+
+                    groupBys[itemAlias] = generateGroupBy(aggTemplate, itemAlias, className, tableColumns[tc]);
 
                 } else if (tableColumns[tc].dimension ) {
 
@@ -647,9 +1072,9 @@ ETLProfile.prototype.integrateWithXDMoD = function () {
                         var aggCode = null;
                         if(tableColumns[tc].dimension_table) {
                             tableColumns[tc].label = CamelCase(itemName);
-                            aggCode = generateGroupBy(aggTemplate, itemName, className, tableColumns[tc]);
+                            //aggCode = generateGroupBy(aggTemplate, itemName, className, tableColumns[tc]);
+                            groupBys[itemName] = generateGroupBy(aggTemplate, itemName, className, tableColumns[tc]);
                         }
-
                         xdmodInteg.addGroupBy(itemName, className, aggCode, tableColumns[tc].roles);
                     }
                 }
@@ -672,35 +1097,49 @@ ETLProfile.prototype.integrateWithXDMoD = function () {
                         description = description.replace( ":label_"+tagidx, tableColumns[tc].dynamictags[tagidx] );
                         description = description.replace(":Label_" + tagidx, wordToUpper(tableColumns[tc].dynamictags[tagidx]));
 					}
-
+/*
 					statCode = statCode.replace('_STAT_CLASS_', className);
 					statCode = statCode.replace('_FORMULA_', escape( tableColumns[tc].stats[st].sql.replace(/\:field_name/g, tableColumns[tc].name)));
 					statCode = statCode.replace('_NAME_', escape(statsname.replace(":field_name", tableColumns[tc].name)))
 					statCode = statCode.replace('_LABEL_', escape(label) );
 					statCode = statCode.replace('_UNIT_', escape(tableColumns[tc].stats[st].unit))
 					statCode = statCode.replace('_INFO_', escape(description) );
+*/
                     var decimals = 1;
                     if( 'decimals' in tableColumns[tc].stats[st]) {
                         decimals = tableColumns[tc].stats[st].decimals;
                     }
-                    statCode = statCode.replace('_DECIMALS_', escape(decimals) );
-
-                    var whereclause = 'NULL';
+                    //statCode = statCode.replace('_DECIMALS_', escape(decimals) );
+                    var additionalWhereJoins = [];
+                    //var whereclause = 'NULL';
+                    
                     if('requirenotnull' in tableColumns[tc].stats[st]) {
-                        var whereclause = "new \\DataWarehouse\\Query\\Model\\WhereCondition(" +
-                            escape(tableColumns[tc].stats[st].requirenotnull.replace(":field_name", tableColumns[tc].name)) +
-                            ", 'IS NOT', 'NULL' )";
+                        additionalWhereJoins = [tableColumns[tc].name, "IS NOT", "NULL"];
+                    //    var whereclause = "new \\DataWarehouse\\Query\\Model\\WhereCondition(" +
+                    //        escape(tableColumns[tc].stats[st].requirenotnull.replace(":field_name", tableColumns[tc].name)) +
+                    //        ", 'IS NOT', 'NULL' )";
                     }
-                    statCode = statCode.replace('_WHERECLAUSE_', whereclause);
+                    //statCode = statCode.replace('_WHERECLAUSE_', whereclause);
 
                     xdmodInteg.addStatistic(statsname, className, statCode);
+					statistics[statsname] = {
+					    "aggregate_formula": tableColumns[tc].stats[st].sql.replace(/\:field_name/g, tableColumns[tc].name).replace(':timeseries', 0),
+					    "description_html": description,
+					    "name": label,
+					    "precision": decimals,
+					    "timeseries_formula": tableColumns[tc].stats[st].sql.replace(/\:field_name/g, tableColumns[tc].name).replace(':timeseries', 1),
+					    "unit": tableColumns[tc].stats[st].unit
+					};
+                    if(additionalWhereJoins.length){
+                        statistics[statsname]['additional_where_condition'] = additionalWhereJoins;
+                    }
 				}
 
 			}
-
+            xdmodInteg.mkdirandwrite(config.xdmodBuildConfigDir + "/datawarehouse.d/ref/", realmName.toLowerCase() + "-statistics", statistics);
+            xdmodInteg.mkdirandwrite(config.xdmodBuildConfigDir + "/datawarehouse.d/ref/", realmName.toLowerCase() + "-group-bys", groupBys);
             xdmodInteg.write();
 		}
-
         var rawstats = {};
         var tables = this.getTables();
         for( var t in tables) {
