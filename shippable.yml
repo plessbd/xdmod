@@ -19,6 +19,7 @@ build:
         pull: false
         options: "--user root -e HOME=/root --shm-size 2g"
     ci:
+        - false
         - composer install --no-progress
         - ~/bin/buildrpm xdmod
         - ./tests/ci/bootstrap.sh
